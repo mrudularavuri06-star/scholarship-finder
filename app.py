@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
@@ -113,7 +113,7 @@ def create_db(docs):
         chunk_size=600,
         chunk_overlap=100
     )
-    return FAISS.from_documents(splitter.split_documents(docs), embeddings)
+    return Chroma.from_documents(splitter.split_documents(docs), embeddings)
 
 # -----------------------------
 # LLM ANSWER (FIXED)
