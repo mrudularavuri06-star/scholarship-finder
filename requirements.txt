@@ -1,14 +1,12 @@
 streamlit==1.35.0
-pandas
-requests
-beautifulsoup4
+pandas==2.2.2
+requests==2.32.3
+beautifulsoup4==4.12.3
 
-langchain
-langchain-community
-langchain-text-splitters
-langchain-huggingface
+langchain==0.2.17
+langchain-community==0.2.7
+langchain-text-splitters==0.2.2
+langchain-huggingface==0.0.3
 
-chromadb==0.5.3
-
-transformers
-sentence-transformers
+chromadb==0.4.24
+sentence-transformers==2.7.0
