@@ -1,4 +1,4 @@
-streamlit
+streamlit==1.35.0
 pandas
 requests
 beautifulsoup4
@@ -7,6 +7,8 @@ langchain
 langchain-community
 langchain-text-splitters
 langchain-huggingface
+
+chromadb==0.5.3
 
 transformers
 sentence-transformers
