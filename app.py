@@ -3,110 +3,86 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.schema import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import FakeEmbeddings
+from langchain.vectorstores import Chroma
 
-# -------------------------
+# ----------------------------
 # PAGE CONFIG
-# -------------------------
-st.set_page_config(page_title="🎓 Scholarship Finder", layout="wide")
+# ----------------------------
+st.set_page_config(page_title="Scholarship Finder", layout="wide")
+
 st.title("🎓 Scholarship & Financial Aid Finder")
 
-# -------------------------
-# LOAD CSV DATA
-# -------------------------
-def load_csv():
-    try:
-        df = pd.read_csv("scholarship_data.csv")
-        docs = []
-
-        for _, row in df.iterrows():
-            content = " ".join([str(i) for i in row.values])
-            docs.append(Document(page_content=content))
-
-        return docs
-    except:
-        st.error("❌ CSV not found!")
-        return []
-
-# -------------------------
-# LOAD WEBSITE DATA
-# -------------------------
-def load_website(url):
-    try:
-        res = requests.get(url)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        # Clean text
-        for script in soup(["script", "style"]):
-            script.extract()
-
-        text = soup.get_text(separator=" ")
-        return [Document(page_content=text)]
-    except:
-        st.error("❌ Failed to load website")
-        return []
-
-# -------------------------
-# CREATE VECTOR DB
-# -------------------------
-@st.cache_resource
-def create_db(docs):
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=600,
-        chunk_overlap=100
-    )
-
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    db = Chroma.from_documents(
-        splitter.split_documents(docs),
-        embedding=embeddings
-    )
-
-    return db
-
-# -------------------------
-# UI
-# -------------------------
+# ----------------------------
+# SELECT SOURCE
+# ----------------------------
 source = st.radio("Select Source:", ["CSV Dataset", "Website"])
 
 documents = []
 
+# ----------------------------
+# CSV MODE
+# ----------------------------
 if source == "CSV Dataset":
-    documents = load_csv()
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
 
-elif source == "Website":
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+
+        for _, row in df.iterrows():
+            text = " ".join([str(v) for v in row.values])
+            documents.append(Document(page_content=text))
+
+        st.success("CSV Loaded!")
+
+# ----------------------------
+# WEBSITE MODE
+# ----------------------------
+if source == "Website":
     url = st.text_input("Enter Website URL")
-    if url:
-        documents = load_website(url)
 
-# -------------------------
-# SEARCH
-# -------------------------
+    if url:
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            text = soup.get_text()
+
+            documents.append(Document(page_content=text))
+
+            st.success("Website Loaded!")
+
+        except:
+            st.error("Failed to load website")
+
+# ----------------------------
+# CREATE VECTOR DB
+# ----------------------------
+def create_db(docs):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+
+    split_docs = splitter.split_documents(docs)
+
+    embeddings = FakeEmbeddings(size=384)  # lightweight, no torch
+
+    db = Chroma.from_documents(split_docs, embeddings)
+
+    return db
+
+# ----------------------------
+# QUERY
+# ----------------------------
 if documents:
     db = create_db(documents)
 
-    query = st.text_input("Ask your question")
+    query = st.text_input("Ask a question")
 
     if query:
-        # Better retrieval (more + diverse)
-        results = db.max_marginal_relevance_search(query, k=5)
+        results = db.similarity_search(query, k=3)
 
-        st.subheader("🔍 Top Matches:")
-        for i, res in enumerate(results):
-            st.write(f"**Result {i+1}:**")
-            st.write(res.page_content[:500] + "...")
-            st.divider()
+        st.subheader("Results:")
+        for res in results:
+            st.write(res.page_content[:500])
 
-        # -------------------------
-        # SIMPLE ANSWER GENERATION
-        # -------------------------
-        combined_text = " ".join([doc.page_content for doc in results])
-
-        st.subheader("💡 Final Answer:")
-        st.write(combined_text[:1000] + "...")
